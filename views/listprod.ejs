@@ -11,7 +11,7 @@
 
       <div class="col-md-12 col-sm-12 col-xs-12">
         <div class="x_panel">
-            <span class="section">Liste des visites </span>
+            <span class="section">Liste des produits </span>
 
           <div class="x_content">
 
@@ -23,10 +23,14 @@
         <th>
           <input type="checkbox" id="check-all" class="flat">
         </th>
-        <th class="column-title">Nom Patient</th>
-        <th class="column-title">Date RDV</th>
+        <th class="column-title">Product Code</th>
 
-        <th class="column-title">Téléphone </th>
+        <th class="column-title">Product Name</th>
+
+        <th class="column-title">Quantité minimale</th>
+
+        <th class="column-title">Produit Extra</th>
+
 
         <th class="column-title no-link last"><span class="nobr">Action</span>
         </th>
@@ -37,23 +41,26 @@
     </thead>
 
     <tbody>
-      <% for(var i=0; i < events.length; i++) { %>
-      <% if(events[i].start.substring(0,10) === datenow.substring(0,10)) {%>
+      <% for(var i=0; i < prods.length; i++) { %>
+
       <tr class="even pointer">
         <td class="a-center ">
           <input type="checkbox" class="flat" name="table_records">
         </td>
-        <td class=" "><%= events[i].title %></td>
-        <td class=" "><%= "Aujourd'hui" + ' à ' + events[i].start.substring(11,16) %></td>
+        <td class=" "><%= prods[i].prodcode %></td>
 
-        <td class=" "><%= events[i].phone %></td>
+        <td class=" "><%= prods[i].prodname %></td>
+
+        <td class=" "><%= prods[i].qtemin %></td>
+
+        <td class=" "><%= prods[i].extra? "Oui" : "Non" %></td>
 
         <td class=" last">
-          <a class="" href="/editrdv/<%= events[i]._id %>" role="button"> Editer RDV </a>
+          <a class="" href="#" role="button"> Edit Prod </a>
 
         </td>
       </tr>
-      <% } %>
+
     <% } %>
     </tbody>
   </table>
