@@ -5,6 +5,9 @@ var router = express.Router();
 var Patient = require('../models/patient');
 var Events = require('../models/events');
 var Counter = require('../models/counter');
+var Prog = require('../models/prog');
+var Product = require('../models/product');
+var Depot = require('../models/depot');
 
 
 
@@ -17,6 +20,26 @@ var Getdate = function(d){
 var Gethour = function(h){
     var out = h.substring(11, 19);
     return out;
+}
+
+var tt;
+
+var GetprodByExp = function(){
+
+  Depot.findOne({depotname: "Siège"},function(err, depot){
+
+    //console.log(depot.inout[0]);
+
+    tt = depot.inout;
+
+    console.log(tt);
+
+    //return depot.inout[0];
+
+  });
+
+  return tt;
+
 }
 
 var SetisPatient = function(id){
@@ -70,34 +93,61 @@ var Getcounter = function(){
 }
 
 
+var ConvertToUnit = function(qte, unittype){
+
+    if (unittype == "Boîte"){
+      return Number(qte) * 21;
+    }else if (unittype == "Caisse"){
+      return Number(qte) * 6 * 21;
+    }else if(unittype == "Unité"){
+      return Number(qte);
+    }
+
+}
+
 
 var SetPrice = function(prog){
+
+      /*
+          @ PROG1--------- 3,490.00 Dhs ---> var a
+          @ PROG2--------- 2,790.00 Dhs ---> var b
+          @ PROG3--------- 1,990.00 Dhs ---> var c
+          @ PROG4--------- 1,090.00 Dhs ---> var d
+          @ PROG/Semaine--   790.00 Dhs ---> var e
+          @ CONSULTATION--   300.00 Dhs ---> var f
+          */
+
 
     var progprice = [
       {
         prog: "Prog 1",
-        prix: "2792",
+        prix: ((3490 * 100)/120).toFixed(2),
         desc: "120 Unités"
       },
       {
         prog: "Prog 2",
-        prix: "2232",
+        prix: ((2790 * 100)/120).toFixed(2),
         desc: "90 Unités"
       },
       {
         prog: "Prog 3",
-        prix: "1592",
+        prix: ((1990 * 100)/120).toFixed(2),
         desc: "60 Unités"
       },
       {
         prog: "Prog 4",
-        prix: "892",
+        prix: ((1090 * 100)/120).toFixed(2),
         desc: "30 Unités"
       },
       {
         prog: "Cons 5",
-        prix: "240",
-        desc: "Consultation sans produits"
+        prix: ((300 * 100)/120).toFixed(2),
+        desc: "CONSULTATION"
+      },
+      {
+        prog: "Cons 6",
+        prix: ((790 * 100)/120).toFixed(2),
+        desc: "PROG/Semaine"
       }
     ];
 
@@ -159,7 +209,7 @@ module.exports = function(passport){
           var vid = req.query.vid;
           //console.log("index: " + index);
           var total = 0;
-          var d = new Date();
+          var d = new Date().toISOString();
           Patient.findById(req.query.id, function(err, patient){
             for (i=0; i< patient.visites.length; i++){
               if((patient.visites[i].clotured === false) && (patient.visites[i]._id.toString() === vid.toString())){
@@ -168,7 +218,7 @@ module.exports = function(passport){
               var discount = patient.visites[i].discount;
               }
             }
-          var totalr = (total - discount);
+          var totalr = (total - ((total * discount)/100));
 
           if (err) {
               console.log('GET Error: There was a problem retrieving: ' + err);
@@ -180,15 +230,11 @@ module.exports = function(passport){
              index: factnum,
              vid: vid,
              discount: discount,
-             date: d.getDate() + "/" + (Number(d.getMonth())+1).toString() + "/" + d.getFullYear()
+             date: d.substring(0,10).split("-").reverse().join("/")
           });
           }
 
           });
-
-
-
- 	 //res.render('invoice', { user: req.user });
   });
 /*
 	router.get('/invoice/:id', isAuthenticated, function(req, res){
@@ -228,7 +274,9 @@ module.exports = function(passport){
 
 
     Events.find(function (err, events){
-    res.render('todayevents', { user: req.user, text: 'Tableau des RDVs', events: events});
+    var datenow =  new Date();
+    var dtnow = datenow.toISOString();
+    res.render('todayevents', { user: req.user, text: 'Tableau des RDVs', events: events, datenow: dtnow});
     });
 
   });
@@ -254,14 +302,26 @@ module.exports = function(passport){
 
 		Patient.findById(req.params.id, function(err, patients){
 
-		 if (err) {
-				 console.log('GET Error: There was a problem retrieving: ' + err);
-		 } else {
-		 res.render('visite', {
-				user: req.user,
-				patients: patients,
-		 });
-		}
+    Product.find(function(err, product){
+     Prog.find(function(err, prog){
+
+       if (err) {
+  				 console.log('GET Error: There was a problem retrieving: ' + err);
+  		 } else {
+  		 res.render('visite', {
+  				user: req.user,
+  				patients: patients,
+          products: product,
+          progs: prog
+  		 });
+  		}
+
+     });
+
+
+
+    });
+
 
 		});
 
@@ -286,37 +346,46 @@ module.exports = function(passport){
         console.log('GET Error: There was a problem retrieving: ' + err);
         //res.redirect('/home');
       }else{
-        var facturenum = inc ;
-			  var visites = {
-					poid: req.body.poid,
-				  taille: req.body.taille,
-				  prog: req.body.prog,
-				  daterdv: new Date(),
-				  prix: SetPrice(req.body.prog)[0],
-          descprod: SetPrice(req.body.prog)[1],
-					comment: req.body.comment,
-					consultant: req.user.lastName + " " + req.user.firstName,
-          clotured: false,
-          factnum: facturenum
-				};
-        var numdossier = req.body.numdossier;
 
-        Patient.findById(req.params.id, function (err, patients) {
-          patients.visites.push(visites);
+        Prog.findOne({progname: req.body.prog}, function(err, prog){
+          var obj = JSON.parse(req.body.obj);
 
-          patients.update({
-            visites: patients.visites,
-            numdossier: numdossier
-          },function (err, patientsID){
-            if(err){
-              console.log('GET Error: There was a problem retrieving: ' + err);
-              res.redirect('/home');
-            }else{
-              res.redirect("/viewpat/" + patients._id);
-            }
-          })
-          //res.render('visite', { user: req.user, patients: patients});
+          var facturenum = inc ;
+          var visites = {
+            poid: req.body.poid,
+            taille: req.body.taille,
+            prog: req.body.prog,
+            daterdv: new Date(),
+            prix: prog.progprice, //SetPrice(req.body.prog)[0],
+            descprod: prog.progdesc, //SetPrice(req.body.prog)[1],
+            comment: req.body.comment,
+            consultant: req.user.lastName + " " + req.user.firstName,
+            clotured: false,
+            products: obj,
+            factnum: facturenum
+          };
+
+
+          var numdossier = req.body.numdossier;
+
+          Patient.findById(req.params.id, function (err, patients) {
+            patients.visites.push(visites);
+
+            patients.update({
+              visites: patients.visites,
+              numdossier: numdossier
+            },function (err, patientsID){
+              if(err){
+                console.log('GET Error: There was a problem retrieving: ' + err);
+                res.redirect('/home');
+              }else{
+                res.redirect("/viewpat/" + patients._id);
+              }
+            })
+            //res.render('visite', { user: req.user, patients: patients});
+          });
         });
+
 
 
       }
@@ -326,6 +395,73 @@ module.exports = function(passport){
 
 });
 
+
+
+router.get('/listprog', isAuthenticated, function(req, res){
+
+  Prog.find(function(err, prog){
+
+    res.render('listprog', {user: req.user, progs: prog});
+
+  });
+
+});
+
+
+router.get('/editprogone/:id', isAuthenticated, function(req, res){
+
+  Prog.findById(req.params.id, function(err, prog){
+
+    res.render('editprogone', {user: req.user, progs: prog});
+
+  });
+
+});
+
+
+router.post('/editprogone/:id', isAuthenticated, function(req, res){
+
+
+  Prog.findById(req.params.id, function (err, prog) {
+
+    prog.update({
+      progname: req.body.progname,
+      progdesc: req.body.progdesc,
+      progprice: req.body.progprice
+
+
+    },function (err, progID){
+      if(err){
+        console.log('GET Error: There was a problem retrieving: ' + err);
+        res.redirect('/editprogone' +  prog._id);
+      }else{
+        res.redirect("/listprog/");
+      }
+    })
+
+   });
+
+
+
+
+
+});
+
+
+
+
+
+router.delete('/listprog/:prog_id', isAuthenticated, function(req, res){
+
+  Prog.remove({
+    _id: req.params.prog_id
+  }, function(err, prog) {
+    if (err)
+      res.send(err);
+
+    res.json({ message: 'Prog successfully deleted!' });
+  });
+});
 
 
 
@@ -470,7 +606,7 @@ module.exports = function(passport){
 				patient.alergies = req.body.alergies;
 				patient.poidinit = req.body.poid;
 				patient.tailleinit = req.body.taille;
-				patient.bmiinit = req.body.bmi;
+				patient.bmiinit = req.body.bmi; //((patient.poidinit/(patient.tailleinit/100*patient.tailleinit/100)).toPrecision(2))
 
 		    patient.save(function(err) {
 		        if (err)
@@ -486,6 +622,8 @@ module.exports = function(passport){
 		    res.render('listpat', { user: req.user, patient: patient});
 		  });
   });
+
+
 
 	router.delete('/listpat/:patient_id', isAuthenticated, function(req, res){
 
@@ -661,7 +799,9 @@ module.exports = function(passport){
 
 	router.get('/test', isAuthenticated, function(req, res){
 
+    var permissions = JSON.parse(req.user.permissions);
 
+    res.render('test', {user: req.user, tt: "Prog 1", permissions: permissions });
 
 
   });
@@ -883,9 +1023,242 @@ module.exports = function(passport){
 
   });
 
+  router.get('/listsessions', isAuthenticated, function(req, res){
+      console.log(req.session);
+      res.render('listsessions', {user: req.user, session: req.session.passport});
+
+      /*var sess = req.session
+      if (sess.views) {
+        sess.views++
+        res.setHeader('Content-Type', 'text/html')
+        res.write('<p>views: ' + sess.views + '</p>')
+        res.write('<p>expires in: ' + (sess.cookie.maxAge / 1000) + 's</p>')
+        res.end()
+      } else {
+        sess.views = 1
+        res.end('welcome to the session demo. refresh!')
+      }*/
+  });
+
+
+ router.get('/addprod', isAuthenticated, function(req, res){
+
+   Product.find(function(err, prod){
+     res.render('addprod', {user: req.user, prods: prod});
+   });
+
+ });
+
+ router.get('/editprog', isAuthenticated, function(req, res){
+
+
+   Prog.find(function (err, prog){
+   //res.render('tabcons', { user: req.user, text: 'Tableau des consultations', patient: patient});
+   Product.find(function(err, product){
+     //Depot.find({depotname: 'Siège' },{ inout: { $elemMatch: { prodqteinit: 12 } } }, function(err, depot){
+     //Depot.find({depotname: 'Siège' },{ inout: { $elemMatch: { prodcode: 'MOR560012', prodqteinit: 8 } } }, function(err, depot){
+     Depot.find({depotname: 'Siege' }, function(err, depot){
+       //console.log(depot);
+       res.render('editprog', {user: req.user, progs: prog, products: product, depot: depot});
+       //res.send(JSON.stringify(depot));
+     }).limit(10);
+
+   });
+
+   });
+
+   //res.render('editprog', {user: req.user});
+ });
+
+ router.post('/updateprogdetail', isAuthenticated, function(req, res){
+
+   var obj = JSON.parse(req.body.obj);
+   var progone = req.body.progname.toString();
+
+   Prog.findOne({progname: progone}, function(err, prog){
+     for(i=0; i < obj.length; i++){
+       prog.products.push(obj[i]);
+     }
+
+     prog.update({
+       products: prog.products
+     }, function (err, progID){
+       if(err){
+         console.log('GET Error: There was a problem retrieving: ' + err);
+         res.redirect('/home');
+       }else{
+         res.redirect("/editprog");
+       }
+     })
+
+   });
+
+
+ });
+
+
+ router.get('/addprog', isAuthenticated, function(req, res){
+   res.render('addprog', {user: req.user});
+ });
+
+
+ router.post('/addprog', isAuthenticated, function(req, res){
+
+
+       var prog = new Prog();
+       prog.progname = req.body.progname;
+       prog.progprice = req.body.progprice;
+       prog.progdesc = req.body.progdesc;
+       prog.maxunite = req.body.maxunite;
+
+       console.log(prog);
+
+       prog.save(function(err) {
+           if (err)
+               res.send(err);
+
+           res.redirect('/listprog');
+       });
+ });
+
+ router.post('/addprod', isAuthenticated, function(req, res){
+
+
+       var product = new Product();
+
+
+       product.prodname = req.body.prodname;
+       product.prodcode = req.body.prodcode;
+       product.extra = req.body.extra ? true : false;
+       product.qtemin = req.body.qtemin;
+
+       console.log(product.extra);
 
 
 
+      product.save(function(err) {
+           if (err)
+               res.send(err);
+
+           res.redirect('/home');
+       });
+
+ });
+
+ router.get('/listprod', isAuthenticated, function(req, res){
+   Product.find(function (err, prod){
+     res.render('listprod', {user: req.user, prods: prod});
+   });
+
+ });
+
+ router.get('/stockin', isAuthenticated, function(req, res){
+   var dt = new Date().toISOString();
+   //s.split("").reverse().join("")
+   Product.find(function(err, prod){
+     Depot.find(function(err, depot){
+       res.render('stockin', {user: req.user, prods: prod, depots: depot,dt: dt.substring(0,10).split("-").reverse().join("/")});
+     });
+
+   });
+
+ });
+
+
+ router.post('/stockin', isAuthenticated, function(req, res){
+
+   var prodinfo = req.body.prodinfo;
+   var prodqte = req.body.prodqte;
+   var produnite = req.body.produnite;
+   var proddatein = req.body.datein;
+   var proddateexp = req.body.dateexp;
+   var proddepot = req.body.depot;
+   var dateachat = req.body.dateachat;
+   var prixachat = req.body.prixachat;
+   var prixvente = req.body.prixvente;
+   var fournisseur = req.body.fournisseur;
+   var numbc = req.body.numbc;
+   var numbl = req.body.numbl;
+
+
+
+
+   var prodcode = prodinfo.substring(0,9);
+
+   Product.findOne({prodcode: prodcode}, function(err, prod){
+
+     var prodid = prod._id;
+
+     var obj = {
+       prodid: prodid,
+       prodcode: prodcode,
+       prodqteinit: prodqte,
+       prodqtemv: ConvertToUnit(prodqte,produnite),       // 1 x Caisse = 6 x Boîtes ; 1 x Boîte = 21 x unités
+       produnite: produnite,                              // 1 x Caisse = 6 x 21 unités
+       datein: proddatein,
+       dateexp: proddateexp,
+       depot: proddepot,
+       dateachat: dateachat,
+       prixachat: prixachat,
+       prixvente: prixvente,
+       Fournisseur: fournisseur,
+       numbc: numbc,
+       numbl: numbl
+     };
+
+     Depot.findOne({depotname: proddepot}, function(err, depot){
+
+       depot.inout.push(obj);
+
+       depot.update({
+         inout: depot.inout
+       }, function (err, depotID){
+         if(err){
+           console.log('GET Error: There was a problem retrieving: ' + err);
+           res.redirect('/home');
+         }else{
+           res.redirect("/home");
+         }
+       })
+
+     });
+
+
+   });
+
+ });
+
+
+ router.get('/adddepot', isAuthenticated, function(req, res){
+   res.render('adddepot', {user: req.user});
+ });
+
+ router.post('/adddepot', isAuthenticated, function(req, res){
+
+    var depot = new Depot();
+
+    depot.depotname = req.body.depotname;
+    depot.inout = [];
+
+    depot.save(function(err) {
+         if (err)
+             res.send(err);
+
+         res.redirect('/home');
+     });
+
+
+ });
+
+router.get('/listinout', isAuthenticated, function(req, res){
+
+  Depot.find(function(err, depot){
+
+    res.render('listinout', {user: req.user, depots: depot});
+
+  });
+
+});
 
 
 	/* Handle Logout */

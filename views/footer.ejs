@@ -57,11 +57,14 @@
     <!-- jQuery Tags Input -->
     <script src="../vendors/jquery.tagsinput/src/jquery.tagsinput.js"></script>
 
-
+    <!-- Select2 -->
+    <script src="../vendors/select2/dist/js/select2.full.min.js"></script>
 
     <!-- bootstrap-progressbar -->
     <script src="../vendors/bootstrap-progressbar/bootstrap-progressbar.min.js"></script>
 
+    <!-- jsGrid -->
+    <script src="../vendors/jsgrid/jsgrid.min.js"></script>
 
     <!-- bootstrap-datetimepicker -->
     <script type="text/javascript" src="/bower_components/eonasdan-bootstrap-datetimepicker/build/js/bootstrap-datetimepicker.min.js"></script>
@@ -108,6 +111,8 @@ $(document).ready(function(){
 
         // evaluate the form using generic validaing
         if (!validator.checkAll($(this))) {
+          $("#alert").toggleClass("hidden");
+          $("#alert").toggleClass("show");
           submit = false;
         }
 
@@ -118,6 +123,22 @@ $(document).ready(function(){
       });
     </script>
     <!-- /validator -->
+    <!-- Select2 -->
+        <script>
+          $(document).ready(function() {
+            $(".select2_single").select2({
+              placeholder: "Séléctioner un Produit",
+              allowClear: true
+            });
+            $(".select2_group").select2({});
+            $(".select2_multiple").select2({
+              maximumSelectionLength: 4,
+              placeholder: "With Max Selection limit 4",
+              allowClear: true
+            });
+          });
+        </script>
+        <!-- /Select2 -->
 
 
 
